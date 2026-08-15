@@ -205,14 +205,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Default Session State Initialization
+# Clean Dynamic Session State (UNAUTHENTICATED BY DEFAULT FOR PRIVACY)
 if "google_user" not in st.session_state:
     st.session_state.google_user = {
-        "is_logged_in": True,
-        "email": "henrytrinhcongtruong@gmail.com",
-        "name": "Trịnh Công Trường",
+        "is_logged_in": False,
+        "email": "",
+        "name": "",
         "app_password": ""
     }
+if "failed_attempts" not in st.session_state:
+    st.session_state.failed_attempts = 0
 
 def format_bytes(size_in_bytes):
     if not size_in_bytes:
@@ -234,7 +236,7 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar Configuration: Ultra-Clean Single Google Auth Button
+# Sidebar Configuration: Dynamic Multi-User Google Auth Connection Form
 with st.sidebar:
     st.markdown('<div class="section-title">Tài Khoản Gửi Mail</div>', unsafe_allow_html=True)
     
@@ -243,11 +245,11 @@ with st.sidebar:
         <div class="profile-box">
             <div class="profile-name">{SecurityEngine.sanitize_text(st.session_state.google_user['name'])}</div>
             <div class="profile-email">{SecurityEngine.sanitize_text(st.session_state.google_user['email'])}</div>
-            <div class="profile-status">● Đã đăng nhập bằng Google</div>
+            <div class="profile-status">● Đã kết nối làm Email Người Gửi</div>
         </div>
         """, unsafe_allow_html=True)
         
-        if st.button("Đổi Tài Khoản Google", use_container_width=True):
+        if st.button("Đăng Xuất / Đổi Tài Khoản", use_container_width=True):
             st.session_state.google_user = {
                 "is_logged_in": False,
                 "email": "",
@@ -256,17 +258,49 @@ with st.sidebar:
             }
             st.rerun()
     else:
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("Đăng Nhập Với Google", type="primary", use_container_width=True):
-            st.session_state.google_user = {
-                "is_logged_in": True,
-                "email": "henrytrinhcongtruong@gmail.com",
-                "name": "Trịnh Công Trường",
-                "app_password": ""
-            }
-            st.success("Đã kết nối tài khoản Google thành công.")
-            time.sleep(0.3)
-            st.rerun()
+        st.caption("Liên kết tài khoản Google của bạn để làm email gửi thư.")
+        
+        if st.session_state.failed_attempts >= 5:
+            st.error("Cảnh báo: Đã vượt quá số lần thử liên kết thất bại.")
+            
+        u_name = st.text_input("Tên người gửi (Hiển thị)", placeholder="Ví dụ: Nguyễn Văn A")
+        u_email = st.text_input("Email Google (Gmail)", placeholder="your.email@gmail.com")
+        u_password = st.text_input("Mật khẩu ứng dụng (App Password)", type="password", help="Mã 16 ký tự từ tài khoản Google của bạn")
+        
+        clean_password = u_password.replace(" ", "").strip()
+        
+        if st.button("Kết Nối Tài Khoản Google", type="primary", use_container_width=True):
+            cleaned_email = SecurityEngine.sanitize_text(u_email)
+            if not cleaned_email or "@" not in cleaned_email:
+                st.error("Vui lòng nhập địa chỉ Email Google hợp lệ.")
+                st.session_state.failed_attempts += 1
+            elif not clean_password:
+                st.error("Vui lòng nhập Mật khẩu ứng dụng của tài khoản Google.")
+                st.session_state.failed_attempts += 1
+            else:
+                try:
+                    # Test SMTP connection to verify credentials safely
+                    server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+                    server.login(cleaned_email, clean_password)
+                    server.quit()
+                    
+                    st.session_state.google_user = {
+                        "is_logged_in": True,
+                        "email": cleaned_email,
+                        "name": SecurityEngine.sanitize_text(u_name) if u_name else cleaned_email.split("@")[0],
+                        "app_password": clean_password
+                    }
+                    st.session_state.failed_attempts = 0
+                    st.success("Kết nối tài khoản thành công.")
+                    time.sleep(0.3)
+                    st.rerun()
+                except Exception as auth_err:
+                    st.session_state.failed_attempts += 1
+                    err_str = str(auth_err)
+                    if "535" in err_str or "Username and Password not accepted" in err_str:
+                        st.error("Google yêu cầu Mã 16 ký tự (App Password) được tạo từ myaccount.google.com/apppasswords")
+                    else:
+                        st.error(f"Xác thực thất bại: {err_str}")
 
 # 2-Column Layout
 col1, col2 = st.columns([1, 1], gap="large")

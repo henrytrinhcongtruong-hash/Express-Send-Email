@@ -211,11 +211,8 @@ if "google_user" not in st.session_state:
         "is_logged_in": False,
         "email": "",
         "name": "",
-        "picture": "",
-        "token": ""
+        "app_password": ""
     }
-if "show_google_oauth_modal" not in st.session_state:
-    st.session_state.show_google_oauth_modal = False
 
 def format_bytes(size_in_bytes):
     if not size_in_bytes:
@@ -237,27 +234,16 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Check query params for Google OAuth click trigger
-query_params = st.query_params
-if query_params.get("auth") == "google_oauth_signin":
-    st.session_state.show_google_oauth_modal = True
-
-# Sidebar Configuration: Official "Sign in with Google" OAuth Flow
+# Sidebar Configuration: Connect Google Email & App Password for Real Dispatch
 with st.sidebar:
     st.markdown('<div class="section-title">Tài Khoản Gửi Mail</div>', unsafe_allow_html=True)
     
     if st.session_state.google_user["is_logged_in"]:
-        avatar_url = st.session_state.google_user.get("picture") or f"https://api.dicebear.com/7.x/identicon/svg?seed={st.session_state.google_user['email']}"
         st.markdown(f"""
         <div class="profile-box">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <img src="{avatar_url}" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #10b981;">
-                <div>
-                    <div class="profile-name">{SecurityEngine.sanitize_text(st.session_state.google_user['name'])}</div>
-                    <div class="profile-email">{SecurityEngine.sanitize_text(st.session_state.google_user['email'])}</div>
-                </div>
-            </div>
-            <div class="profile-status">● Đã kết nối qua Google Auth</div>
+            <div class="profile-name">{SecurityEngine.sanitize_text(st.session_state.google_user['name'])}</div>
+            <div class="profile-email">{SecurityEngine.sanitize_text(st.session_state.google_user['email'])}</div>
+            <div class="profile-status">● Đã kết nối Gmail SMTP thực tế</div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -266,76 +252,42 @@ with st.sidebar:
                 "is_logged_in": False,
                 "email": "",
                 "name": "",
-                "picture": "",
-                "token": ""
+                "app_password": ""
             }
-            st.session_state.show_google_oauth_modal = False
-            st.query_params.clear()
             st.rerun()
     else:
-        st.caption("Đăng nhập tài khoản Google của bạn để thiết lập email gửi thư tự động.")
-        st.markdown("<br>", unsafe_allow_html=True)
+        st.caption("Kết nối Gmail để gửi email hàng loạt trực tiếp đến hộp thư người nhận.")
         
-        # Official Google Sign-In Button (SVG Logo)
-        google_button_html = """
-        <div style="text-align: center; margin-bottom: 14px;">
-            <a href="?auth=google_oauth_signin" target="_self" style="
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 10px;
-                background-color: #ffffff;
-                color: #1f2937;
-                font-weight: 600;
-                font-size: 14px;
-                padding: 12px 20px;
-                border-radius: 8px;
-                text-decoration: none;
-                box-shadow: 0 4px 14px rgba(0,0,0,0.25);
-                width: 100%;
-                box-sizing: border-box;
-                transition: all 0.2s ease;
-            ">
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.24v3.15C3.26 21.39 7.33 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.24C.45 8.15 0 9.99 0 12s.45 3.85 1.24 5.42l4.04-3.15z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.61 1.24 6.58l4.04 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/>
-                </svg>
-                Đăng Nhập Với Google
-            </a>
-        </div>
-        """
-        st.markdown(google_button_html, unsafe_allow_html=True)
-
-# Google OAuth Sign-In Popup Form Handler
-if st.session_state.get("show_google_oauth_modal") and not st.session_state.google_user["is_logged_in"]:
-    st.markdown("---")
-    st.info("🌐 Đang kết nối tới Google OAuth Authentication Server...")
-    with st.form("google_oauth_signin_form"):
-        st.markdown("### 🔑 Đăng Nhập Với Google (Google Account Connection)")
-        st.caption("Nhập địa chỉ Gmail của bạn để xác thực đăng nhập:")
-        user_email = st.text_input("Địa chỉ Gmail của bạn", placeholder="example@gmail.com")
-        user_name = st.text_input("Tên hiển thị (Google Name)", placeholder="Ví dụ: Nguyễn Văn A")
+        u_name = st.text_input("Tên người gửi (Hiển thị)", placeholder="Ví dụ: Nguyễn Văn A")
+        u_email = st.text_input("Email Google (Gmail)", placeholder="your.email@gmail.com")
+        u_pass = st.text_input("Mật khẩu ứng dụng (App Password 16 số)", type="password", help="Dán mã 16 ký tự từ myaccount.google.com/apppasswords")
         
-        submitted = st.form_submit_button("Xác Nhận Đăng Nhập Google", type="primary", use_container_width=True)
-        if submitted:
-            cleaned_e = SecurityEngine.sanitize_text(user_email)
-            if cleaned_e and "@" in cleaned_e:
-                st.session_state.google_user = {
-                    "is_logged_in": True,
-                    "email": cleaned_e,
-                    "name": SecurityEngine.sanitize_text(user_name) if user_name else cleaned_e.split("@")[0],
-                    "picture": f"https://api.dicebear.com/7.x/identicon/svg?seed={cleaned_e}",
-                    "token": "google_oauth2_connected"
-                }
-                st.session_state.show_google_oauth_modal = False
-                st.query_params.clear()
-                st.success("Đã đăng nhập thành công bằng Google!")
-                time.sleep(0.3)
-                st.rerun()
+        clean_pass = u_pass.replace(" ", "").strip()
+        
+        if st.button("Xác Nhận Kết Nối Gmail", type="primary", use_container_width=True):
+            cleaned_email = SecurityEngine.sanitize_text(u_email)
+            if not cleaned_email or "@" not in cleaned_email:
+                st.error("Vui lòng nhập Email Google hợp lệ.")
+            elif not clean_pass:
+                st.error("Vui lòng nhập Mật khẩu ứng dụng Gmail (16 ký tự).")
             else:
-                st.error("Vui lòng nhập địa chỉ Gmail hợp lệ.")
+                try:
+                    # Test real SMTP connection immediately
+                    server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+                    server.login(cleaned_email, clean_pass)
+                    server.quit()
+                    
+                    st.session_state.google_user = {
+                        "is_logged_in": True,
+                        "email": cleaned_email,
+                        "name": SecurityEngine.sanitize_text(u_name) if u_name else cleaned_email.split("@")[0],
+                        "app_password": clean_pass
+                    }
+                    st.success("Xác thực kết nối Gmail thành công!")
+                    time.sleep(0.3)
+                    st.rerun()
+                except Exception as auth_err:
+                    st.error(f"Xác thực thất bại: {str(auth_err)}. Lưu ý: Google yêu cầu Mật khẩu ứng dụng 16 ký tự tạo từ link myaccount.google.com/apppasswords")
 
 # 2-Column Layout
 col1, col2 = st.columns([1, 1], gap="large")
@@ -372,7 +324,8 @@ with col1:
                 SecurityEngine.send_intrusion_alert(
                     "Tải Lên Tệp Độc Hại / Bị Cấm",
                     f"Tên tệp: {att.name} | Dung lượng: {format_bytes(att.size)}",
-                    sender_email=st.session_state.google_user.get("email")
+                    sender_email=st.session_state.google_user.get("email"),
+                    app_password=st.session_state.google_user.get("app_password")
                 )
             else:
                 valid_attachments.append(att)
@@ -435,7 +388,7 @@ with col2:
         )
     
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('<div class="section-title">Thực Thi Gửi Mail</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Thực Thi Gửi Mail Trực Tiếp</div>', unsafe_allow_html=True)
     
     can_send = st.session_state.google_user["is_logged_in"] and email_subject and email_body and len(recipients_list) > 0
     
@@ -446,9 +399,10 @@ with col2:
     elif not email_subject or not email_body:
         st.caption("Vui lòng nhập tiêu đề và nội dung thư.")
         
-    if st.button("Bắt Đầu Gửi Mail", type="primary", disabled=not can_send, use_container_width=True):
+    if st.button("Bắt Đầu Gửi Mail Trực Tiếp", type="primary", disabled=not can_send, use_container_width=True):
         sender_email = st.session_state.google_user["email"]
         sender_name = st.session_state.google_user["name"]
+        app_password = st.session_state.google_user["app_password"]
         
         progress_bar = st.progress(0)
         status_text = st.empty()
@@ -460,24 +414,49 @@ with col2:
         total = len(recipients_list)
         
         try:
+            # 1. Connect to Gmail SMTP SSL server
+            server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
+            server.login(sender_email, app_password)
+            
+            # 2. Iterate and send REAL email to each recipient inbox!
             for index, target_email in enumerate(recipients_list):
                 try:
                     cleaned_target = SecurityEngine.sanitize_text(target_email)
+                    msg = MIMEMultipart()
+                    msg['From'] = f'"{sender_name}" <{sender_email}>'
+                    msg['To'] = cleaned_target
+                    msg['Subject'] = email_subject
+                    
+                    is_html = '<' in email_body and '>' in email_body
+                    msg.attach(MIMEText(email_body, 'html' if is_html else 'plain', 'utf-8'))
+                    
+                    if valid_attachments:
+                        for file in valid_attachments:
+                            part = MIMEBase('application', 'octet-stream')
+                            part.set_payload(file.getvalue())
+                            encoders.encode_base64(part)
+                            clean_filename = SecurityEngine.sanitize_text(file.name)
+                            part.add_header('Content-Disposition', f'attachment; filename="{clean_filename}"')
+                            msg.attach(part)
+                    
+                    # ACTUAL EMAIL DISPATCH VIA GMAIL SMTP!
+                    server.send_message(msg)
                     sent_count += 1
-                    logs.append({"Email": cleaned_target, "Trạng thái": "Thành công"})
+                    logs.append({"Email": cleaned_target, "Trạng thái": "Đã gửi thành công ✅"})
                 except Exception as err:
                     failed_count += 1
-                    logs.append({"Email": target_email, "Trạng thái": f"Thất bại: {str(err)}"})
+                    logs.append({"Email": target_email, "Trạng thái": f"Thất bại: {str(err)} ❌"})
                 
                 current_percent = int(((index + 1) / total) * 100)
                 progress_bar.progress(current_percent)
                 status_text.caption(f"Tiến độ: {index + 1}/{total} email ({current_percent}%)")
                 time.sleep(0.3)
                 
-            st.success(f"Hoàn tất đợt gửi. Thành công: {sent_count}/{total} - Thất bại: {failed_count}")
+            server.quit()
+            st.success(f"🎉 Hoàn tất đợt gửi! Đã gửi thực tế vào hộp thư: {sent_count}/{total} email - Thất bại: {failed_count}")
             
             with log_box:
                 st.dataframe(pd.DataFrame(logs), use_container_width=True)
                 
         except Exception as conn_err:
-            st.error(f"Lỗi kết nối máy chủ gửi mail: {str(conn_err)}")
+            st.error(f"❌ Lỗi kết nối Gmail SMTP: {str(conn_err)}. Vui lòng kiểm tra lại Mật khẩu ứng dụng Gmail (16 ký tự).")

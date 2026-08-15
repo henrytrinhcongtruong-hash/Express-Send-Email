@@ -169,6 +169,17 @@ st.markdown("""
         margin-top: 6px;
     }
     
+    .google-guide-box {
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.25);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 12px;
+        color: #cbd5e1;
+        margin-top: 10px;
+        line-height: 1.5;
+    }
+    
     .file-item {
         background: rgba(30, 41, 59, 0.5);
         border: 1px solid rgba(255, 255, 255, 0.06);
@@ -245,7 +256,7 @@ with st.sidebar:
         <div class="profile-box">
             <div class="profile-name">{SecurityEngine.sanitize_text(st.session_state.google_user['name'])}</div>
             <div class="profile-email">{SecurityEngine.sanitize_text(st.session_state.google_user['email'])}</div>
-            <div class="profile-status">● Đã kết nối & Bảo vệ 256-bit</div>
+            <div class="profile-status">● Đã kết nối làm Email Người Gửi</div>
         </div>
         """, unsafe_allow_html=True)
         
@@ -263,43 +274,59 @@ with st.sidebar:
             SecurityEngine.send_intrusion_alert("Anti-Brute Force Triggered", "Đã vượt quá 5 lần thử xác thực thất bại liên tiếp.")
             
         g_name = st.text_input("Tên người gửi", value="Trịnh Công Trường")
-        g_email = st.text_input("Email Google (Gmail)", value="", placeholder="name@domain.com")
-        g_password = st.text_input("Mật khẩu ứng dụng (App Password)", type="password")
+        g_email = st.text_input("Email Google (Gmail)", value="henrytrinhcongtruong@gmail.com", placeholder="name@domain.com")
+        g_password = st.text_input("Mật khẩu ứng dụng (App Password)", type="password", help="Mã 16 ký tự tạo từ Google Account")
         
-        if st.button("Xác Nhận Tài Khoản", type="primary", use_container_width=True):
+        # Auto clean spaces from copied App Passwords (e.g. 'abcd efgh ijkl mnop' -> 'abcdefghijklmnop')
+        clean_password = g_password.replace(" ", "").strip()
+        
+        if st.button("Kết Nối Tài Khoản Google", type="primary", use_container_width=True):
             cleaned_email = SecurityEngine.sanitize_text(g_email)
             if not cleaned_email or "@" not in cleaned_email:
                 st.error("Email không hợp lệ.")
                 st.session_state.failed_attempts += 1
-            elif not g_password:
-                st.error("Vui lòng nhập Mật khẩu ứng dụng.")
+            elif not clean_password:
+                st.error("Vui lòng nhập Mật khẩu ứng dụng 16 ký tự của Google.")
                 st.session_state.failed_attempts += 1
             else:
                 try:
                     # Test SMTP connection to verify credentials safely
                     server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-                    server.login(cleaned_email, g_password.strip())
+                    server.login(cleaned_email, clean_password)
                     server.quit()
                     
                     st.session_state.google_user = {
                         "is_logged_in": True,
                         "email": cleaned_email,
                         "name": SecurityEngine.sanitize_text(g_name) if g_name else cleaned_email.split("@")[0],
-                        "app_password": g_password.strip()
+                        "app_password": clean_password
                     }
                     st.session_state.failed_attempts = 0
-                    st.success("Xác thực thành công.")
+                    st.success("Kết nối tài khoản thành công.")
                     time.sleep(0.3)
                     st.rerun()
                 except Exception as auth_err:
                     st.session_state.failed_attempts += 1
-                    st.error(f"Xác thực thất bại: {str(auth_err)}")
-                    # Trigger alert on suspicious failed logins
+                    err_str = str(auth_err)
+                    if "535" in err_str or "Username and Password not accepted" in err_str:
+                        st.error("Google từ chối Mật khẩu thường. Bạn cần dùng Mã 16 ký tự (App Password) của Google. Xem hướng dẫn nhanh 5 giây bên dưới.")
+                    else:
+                        st.error(f"Xác thực thất bại: {err_str}")
+                        
                     if st.session_state.failed_attempts >= 3:
                         SecurityEngine.send_intrusion_alert(
                             "Thử Đăng Nhập Sai Liên Tiếp",
-                            f"Email thử: {cleaned_email} | Lỗi: {str(auth_err)}"
+                            f"Email thử: {cleaned_email} | Lỗi: {err_str}"
                         )
+                        
+        # 1-Click Guide to create Google App Password in 5 seconds
+        with st.expander("Cách lấy Mã 16 ký tự của Google (5 giây)"):
+            st.markdown("""
+            1. Bật **Xác minh 2 bước** trên Gmail tại: [myaccount.google.com/signinoptions/two-step-verification](https://myaccount.google.com/signinoptions/two-step-verification)
+            2. Vào link tạo mã: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
+            3. Nhập tên ứng dụng **MailExpress** ➔ Nhấn **Tạo** (Create).
+            4. Copy mã 16 ký tự hiện ra dán vào ô Mật khẩu ở trên là xong!
+            """)
 
 # 2-Column Layout
 col1, col2 = st.columns([1, 1], gap="large")
@@ -333,7 +360,6 @@ with col1:
             is_valid, err_msg = SecurityEngine.validate_file(att)
             if not is_valid:
                 st.error(err_msg)
-                # Send Security Intrusion Alert to Admin Email
                 SecurityEngine.send_intrusion_alert(
                     "Tải Lên Tệp Độc Hại / Bị Cấm",
                     f"Tên tệp: {att.name} | Dung lượng: {format_bytes(att.size)}",

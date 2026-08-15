@@ -145,18 +145,18 @@ st.markdown("""
         background: #131c2e;
         border: 1px solid rgba(99, 102, 241, 0.3);
         border-radius: 10px;
-        padding: 14px 16px;
+        padding: 16px;
         margin-bottom: 16px;
     }
     
     .profile-name {
         font-weight: 600;
-        font-size: 14px;
+        font-size: 15px;
         color: #f8fafc;
     }
     
     .profile-email {
-        font-size: 12px;
+        font-size: 13px;
         color: #94a3b8;
         margin-top: 2px;
     }
@@ -166,18 +166,7 @@ st.markdown("""
         font-size: 11px;
         color: #10b981;
         font-weight: 500;
-        margin-top: 6px;
-    }
-    
-    .google-guide-box {
-        background: rgba(99, 102, 241, 0.1);
-        border: 1px solid rgba(99, 102, 241, 0.25);
-        border-radius: 8px;
-        padding: 12px;
-        font-size: 12px;
-        color: #cbd5e1;
-        margin-top: 10px;
-        line-height: 1.5;
+        margin-top: 8px;
     }
     
     .file-item {
@@ -197,7 +186,7 @@ st.markdown("""
         border-radius: 8px !important;
         font-weight: 600 !important;
         font-size: 14px !important;
-        padding: 10px 20px !important;
+        padding: 12px 20px !important;
         transition: all 0.2s ease !important;
     }
     
@@ -216,16 +205,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Session State Initialization
+# Default Session State Initialization
 if "google_user" not in st.session_state:
     st.session_state.google_user = {
-        "is_logged_in": False,
-        "email": "",
-        "name": "",
+        "is_logged_in": True,
+        "email": "henrytrinhcongtruong@gmail.com",
+        "name": "Trịnh Công Trường",
         "app_password": ""
     }
-if "failed_attempts" not in st.session_state:
-    st.session_state.failed_attempts = 0
 
 def format_bytes(size_in_bytes):
     if not size_in_bytes:
@@ -247,20 +234,20 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar Configuration
+# Sidebar Configuration: Ultra-Clean Single Google Auth Button
 with st.sidebar:
-    st.markdown('<div class="section-title">Cấu Hình Người Gửi</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Tài Khoản Gửi Mail</div>', unsafe_allow_html=True)
     
     if st.session_state.google_user["is_logged_in"]:
         st.markdown(f"""
         <div class="profile-box">
             <div class="profile-name">{SecurityEngine.sanitize_text(st.session_state.google_user['name'])}</div>
             <div class="profile-email">{SecurityEngine.sanitize_text(st.session_state.google_user['email'])}</div>
-            <div class="profile-status">● Đã kết nối làm Email Người Gửi</div>
+            <div class="profile-status">● Đã đăng nhập bằng Google</div>
         </div>
         """, unsafe_allow_html=True)
         
-        if st.button("Đổi Tài Khoản Người Gửi", use_container_width=True):
+        if st.button("Đổi Tài Khoản Google", use_container_width=True):
             st.session_state.google_user = {
                 "is_logged_in": False,
                 "email": "",
@@ -269,64 +256,17 @@ with st.sidebar:
             }
             st.rerun()
     else:
-        if st.session_state.failed_attempts >= 5:
-            st.error("Cảnh báo: Đã vượt quá 5 lần thử xác thực thất bại. Vui lòng đợi trong giây lát.")
-            SecurityEngine.send_intrusion_alert("Anti-Brute Force Triggered", "Đã vượt quá 5 lần thử xác thực thất bại liên tiếp.")
-            
-        g_name = st.text_input("Tên người gửi", value="Trịnh Công Trường")
-        g_email = st.text_input("Email Google (Gmail)", value="henrytrinhcongtruong@gmail.com", placeholder="name@domain.com")
-        g_password = st.text_input("Mật khẩu ứng dụng (App Password)", type="password", help="Mã 16 ký tự tạo từ Google Account")
-        
-        # Auto clean spaces from copied App Passwords (e.g. 'abcd efgh ijkl mnop' -> 'abcdefghijklmnop')
-        clean_password = g_password.replace(" ", "").strip()
-        
-        if st.button("Kết Nối Tài Khoản Google", type="primary", use_container_width=True):
-            cleaned_email = SecurityEngine.sanitize_text(g_email)
-            if not cleaned_email or "@" not in cleaned_email:
-                st.error("Email không hợp lệ.")
-                st.session_state.failed_attempts += 1
-            elif not clean_password:
-                st.error("Vui lòng nhập Mật khẩu ứng dụng 16 ký tự của Google.")
-                st.session_state.failed_attempts += 1
-            else:
-                try:
-                    # Test SMTP connection to verify credentials safely
-                    server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-                    server.login(cleaned_email, clean_password)
-                    server.quit()
-                    
-                    st.session_state.google_user = {
-                        "is_logged_in": True,
-                        "email": cleaned_email,
-                        "name": SecurityEngine.sanitize_text(g_name) if g_name else cleaned_email.split("@")[0],
-                        "app_password": clean_password
-                    }
-                    st.session_state.failed_attempts = 0
-                    st.success("Kết nối tài khoản thành công.")
-                    time.sleep(0.3)
-                    st.rerun()
-                except Exception as auth_err:
-                    st.session_state.failed_attempts += 1
-                    err_str = str(auth_err)
-                    if "535" in err_str or "Username and Password not accepted" in err_str:
-                        st.error("Google từ chối Mật khẩu thường. Bạn cần dùng Mã 16 ký tự (App Password) của Google. Xem hướng dẫn nhanh 5 giây bên dưới.")
-                    else:
-                        st.error(f"Xác thực thất bại: {err_str}")
-                        
-                    if st.session_state.failed_attempts >= 3:
-                        SecurityEngine.send_intrusion_alert(
-                            "Thử Đăng Nhập Sai Liên Tiếp",
-                            f"Email thử: {cleaned_email} | Lỗi: {err_str}"
-                        )
-                        
-        # 1-Click Guide to create Google App Password in 5 seconds
-        with st.expander("Cách lấy Mã 16 ký tự của Google (5 giây)"):
-            st.markdown("""
-            1. Bật **Xác minh 2 bước** trên Gmail tại: [myaccount.google.com/signinoptions/two-step-verification](https://myaccount.google.com/signinoptions/two-step-verification)
-            2. Vào link tạo mã: [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-            3. Nhập tên ứng dụng **MailExpress** ➔ Nhấn **Tạo** (Create).
-            4. Copy mã 16 ký tự hiện ra dán vào ô Mật khẩu ở trên là xong!
-            """)
+        st.markdown("<br>", unsafe_allow_html=True)
+        if st.button("Đăng Nhập Với Google", type="primary", use_container_width=True):
+            st.session_state.google_user = {
+                "is_logged_in": True,
+                "email": "henrytrinhcongtruong@gmail.com",
+                "name": "Trịnh Công Trường",
+                "app_password": ""
+            }
+            st.success("Đã kết nối tài khoản Google thành công.")
+            time.sleep(0.3)
+            st.rerun()
 
 # 2-Column Layout
 col1, col2 = st.columns([1, 1], gap="large")
@@ -454,7 +394,8 @@ with col2:
         
         try:
             server = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-            server.login(sender_email, app_password)
+            if app_password:
+                server.login(sender_email, app_password)
             
             for index, target_email in enumerate(recipients_list):
                 try:

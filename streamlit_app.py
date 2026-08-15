@@ -269,15 +269,16 @@ with col2:
         except Exception as e:
             st.error(f"Lỗi đọc file: {str(e)}")
     else:
+        # Sample DataFrame with pure English headers to avoid font encoding issues
         sample_df = pd.DataFrame([
-            {"Họ và Tên": "Nguyễn Văn An", "Email": "an.nguyen@example.com"},
-            {"Họ và Tên": "Trần Thị Bình", "Email": "binh.tran@example.com"}
+            {"Name": "Nguyen Van An", "Email": "an.nguyen@example.com", "Note": "VIP Client"},
+            {"Name": "Tran Thi Binh", "Email": "binh.tran@example.com", "Note": "New Client"}
         ])
         csv_bytes = sample_df.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="Tải File Mẫu (.csv)",
             data=csv_bytes,
-            file_name="danh_sach_email_mau.csv",
+            file_name="sample_email_list.csv",
             mime="text/csv"
         )
     

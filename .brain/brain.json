@@ -1,0 +1,15 @@
+{
+  "project": {
+    "name": "bulk-email-sender",
+    "description": "Ứng dụng web gửi email hàng loạt từ danh sách Excel với email người gửi, tiêu đề và nội dung tùy chỉnh.",
+    "created_at": "2026-08-14T21:55:00+07:00"
+  },
+  "tech_stack": [],
+  "features": [
+    "Nhập email người gửi",
+    "Nhập tiêu đề email",
+    "Nhập nội dung email",
+    "Import file Excel chứa danh sách email khách hàng"
+  ],
+  "decisions": []
+}
